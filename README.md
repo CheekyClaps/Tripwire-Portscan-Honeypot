@@ -1,5 +1,5 @@
 # Tripwire-Portscan-Honeypot
-A OSX suitible portscan honeypot built around Scapy.
+A Mac OSX suitible portscan honeypot built around Scapy.
 
 ## Todo
 - Implement ntify

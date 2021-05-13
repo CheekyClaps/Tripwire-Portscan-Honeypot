@@ -1,5 +1,0 @@
-scapy
-requests
-pymsteams
-PyYAML
-validators

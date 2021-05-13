@@ -11,5 +11,4 @@ A Mac OSX suitable portscan honeypot built around Scapy.
 
 ## Disclaimer
 I just took whatever i could find and slapped it in and made it work. Dont expect to find a finished product or a beautiful symphony of code.
-What you will find are ideas could not find with ease. (meaby because it's so simple that nobody even bothered to make it public)
-
+What you will find is an elaboration of ideas i could not find with ease. (meaby because it's so simple that nobody even bothered to make it public)

@@ -1,6 +1,6 @@
 from scapy.all import *
 from appsettings import *
-from ntfy import *
+import pync
 
 Settings = AppSettings()
 
@@ -74,29 +74,28 @@ class Packets:
     ## Packet filter - check if packets are tcp, udp or that the belong to out defined ports
     def build_lfilter(self, pkt):
         if IP in pkt:
-            if not Settings.debug and pkt[IP].src == Settings.listening_ip:
-                return False
-            elif Settings.debug and pkt[IP].src == Settings.listening_ip: 
+            if Settings.debug and pkt[IP].src == Settings.listening_ip: 
                 return True
+            elif TCP in pkt:
+                if pkt[TCP].dport and pkt[TCP].dport in Settings.listening_tcp_ports:
+                    return True
+                elif pkt[TCP].sport and pkt[TCP].sport in Settings.listening_tcp_ports:
+                    return True
+            elif UDP in pkt:
+                if pkt[UDP].dport and pkt[UDP].dport in Settings.listening_udp_ports:
+                    return True
+                elif pkt[UDP].sport and pkt[UDP].sport in Settings.listening_udp_ports:
+                    return True
+            elif ICMP in pkt:
+                return True
+            else:
+                return False
         elif ARP in pkt:
             if pkt[ARP].pdst in Settings.listening_ip:
                 return True
             elif pkt[ARP].psrc in Settings.listening_ip:
                 return True
-        elif TCP in pkt:
-            if pkt[TCP].dport and pkt[TCP].dport in Settings.listening_tcp_ports:
-                return True
-            elif pkt[TCP].sport and pkt[TCP].sport in Settings.listening_tcp_ports:
-                return True
-        elif UDP in pkt:
-            if pkt[UDP].dport and pkt[UDP].dport in Settings.listening_udp_ports:
-                return True
-            elif pkt[UDP].sport and pkt[UDP].sport in Settings.listening_udp_ports:
-                return True
-        elif ICMP in pkt:
-            return True
-        else:
-            return False
+
 
     ## Packet parser - So if its all still holds True then analyse packets
     def parse_packet(self, pkt):
@@ -104,26 +103,29 @@ class Packets:
             sourceAddr = pkt[IP].src
             destAddr = pkt[IP].dst
             timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+            if TCP in pkt:
+                sourcePort = pkt[TCP].sport
+                destPort = pkt[TCP].dport
+                flags = self.get_tcp_flags(str(pkt[TCP].flags))
+                print('[{0}] [TCP] {1}:{2} -> {3}:{4} - {5}'.format(timestamp, sourceAddr, sourcePort, destAddr, destPort, flags))
+                pync.notify('TCP port tripped, possible scan detected!', title='Tripwire')
+            elif UDP in pkt:
+                sourcePort = pkt[UDP].sport
+                destPort = pkt[UDP].dport
+                print('[{0}] [UDP] {1}:{2} -> {3}:{4}'.format(timestamp, sourceAddr, sourcePort, destAddr, destPort))
+                pync.notify('UDP port tripped, possible scan detected!', title='Tripwire')
+            elif ICMP in pkt:
+                type = pkt[ICMP].type
+                code = pkt[ICMP].code
+                icmp_codes = self.get_icmp_codes((type, code))
+                print('[{0}] [ICMP Type {1}, Code {2}: {3}] {4} -> {5}'.format(timestamp, type, code, 
+                icmp_codes if icmp_codes else '',
+                    sourceAddr, destAddr))
         elif ARP in pkt:
             sourceAddr = pkt[ARP].psrc
             destAddr = pkt[ARP].pdst
+            timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
             print('[{0}] [ARP] {1} -> {3}'.format(timestamp, sourceAddr, destAddr))
-        elif TCP in pkt:
-            sourcePort = pkt[TCP].sport
-            destPort = pkt[TCP].dport
-            flags = self.get_tcp_flags(str(pkt[TCP].flags))
-            print('[{0}] [TCP] {1}:{2} -> {3}:{4} - {5}'.format(timestamp, sourceAddr, sourcePort, destAddr, destPort, flags))
-        elif UDP in pkt:
-            sourcePort = pkt[UDP].sport
-            destPort = pkt[UDP].dport
-            print('[{0}] [UDP] {1}:{2} -> {3}:{4}'.format(timestamp, sourceAddr, sourcePort, destAddr, destPort))
-        elif ICMP in pkt:
-            type = pkt[ICMP].type
-            code = pkt[ICMP].code
-            icmp_codes = self.get_icmp_codes((type, code))
-            print('[{0}] [ICMP Type {1}, Code {2}: {3}] {4} -> {5}'.format(timestamp, type, code, 
-            icmp_codes if icmp_codes else '',
-                sourceAddr, destAddr))
         else:
             pkt.summary
             print('Packet not an IP packet')

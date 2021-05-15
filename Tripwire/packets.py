@@ -125,7 +125,7 @@ class Packets:
             sourceAddr = pkt[ARP].psrc
             destAddr = pkt[ARP].pdst
             timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-            print('[{0}] [ARP] {1} -> {3}'.format(timestamp, sourceAddr, destAddr))
+            print('[{0}] [ARP] {1} -> {2}'.format(timestamp, sourceAddr, destAddr))
         else:
             pkt.summary
             print('Packet not an IP packet')

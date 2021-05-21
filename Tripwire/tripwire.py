@@ -6,15 +6,7 @@ from datetime import datetime
 import socket
 import os
 
-
-#import logging
-#import packets
-#import retaliate
-
-# import classes
-#from logging import *
 from packets import *
-from retaliate import *
 from appsettings import *
 
 RED = '\33[31m'

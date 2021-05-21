@@ -7,7 +7,7 @@ Settings = AppSettings()
 class Packets:
 
     ## Dictionary mapping of TCP flags 
-    def get_tcp_flags(self, flags):
+    def __get_tcp_flags(self, flags):
         tcp_flag_mapping = {
             '': 'TCP NULL',
             'A': 'TCP ACK',
@@ -30,7 +30,7 @@ class Packets:
         return tcp_flag_mapping.get(flags)
 
     ## Dictionary mapping of ICMP Codes
-    def get_icmp_codes(self, code):
+    def __get_icmp_codes(self, code):
         icmp_codes_mapping = { 
            (0, 0): 'ICMP Echo Reply (Ping Reply)',
             # Types 1 and 2 are reserved
@@ -70,8 +70,39 @@ class Packets:
             # The rest are deprecated, reserved, or experiemental
         }
         return icmp_codes_mapping.get(code, 'unknown')
+    
+    ## Packet handlers
+    def __tcp_packet_handler(self, pkt, srcIP, dstIP, timestamp):
+        srcPort = pkt[TCP].sport
+        dstPort = pkt[TCP].dport
+        flags = self.__get_tcp_flags(str(pkt[TCP].flags))
+        self.__alert( 'TCP', srcIP, srcPort, dstIP, dstPort, timestamp, flags)
 
-    ## Packet filter - check if packets are tcp, udp or that the belong to out defined ports
+    def __udp_packet_handler(self, pkt, srcIP, dstIP, timestamp):
+        srcPort = pkt[UDP].sport
+        dstPort = pkt[UDP].dport
+        self.__alert( 'UDP', srcIP, srcPort, dstIP, dstPort, timestamp)
+
+    def __icmp_packet_handler(self, pkt, srcIP, dstIP, timestamp):
+        type = pkt[ICMP].type
+        code = pkt[ICMP].code
+        icmp_codes = self.__get_icmp_codes((type, code))
+        print('[{0}] [ICMP Type {1}, Code {2}: {3}] {4} -> {5}'.format(timestamp, type, code, 
+        icmp_codes if icmp_codes else '',
+            sourceAddr, destAddr))
+
+    def __arp_packet_handler(self, pkt, timestamp):
+        sourceAddr = pkt[ARP].psrc
+        destAddr = pkt[ARP].pdst
+        print('[{0}] [ARP] {1} -> {2}'.format(timestamp, sourceAddr, destAddr))
+
+
+    def __alert(self, pktType, srcIP, srcPort, dstIP, dstPort, timestamp, flags=False):
+        print('[{0}] [{1}] {2}:{3} -> {4}:{5} - {6}'.format(timestamp, pktType, srcIP, srcPort, dstIP, dstPort, flags if flags else ''))
+        pync.notify( '{pktType} port tripped, possible scan detected!', title='Tripwire')
+
+
+    ## Packet filter
     def build_lfilter(self, pkt):
         if IP in pkt:
             if Settings.debug and pkt[IP].src == Settings.listening_ip: 
@@ -97,37 +128,23 @@ class Packets:
                 return True
 
 
-    ## Packet parser - So if its all still holds True then analyse packets
+    ## Packet parser 
     def parse_packet(self, pkt):
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
         if IP in pkt:
-            sourceAddr = pkt[IP].src
-            destAddr = pkt[IP].dst
-            timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+            srcIP = pkt[IP].src
+            dstIP = pkt[IP].dst
             if TCP in pkt:
-                sourcePort = pkt[TCP].sport
-                destPort = pkt[TCP].dport
-                flags = self.get_tcp_flags(str(pkt[TCP].flags))
-                print('[{0}] [TCP] {1}:{2} -> {3}:{4} - {5}'.format(timestamp, sourceAddr, sourcePort, destAddr, destPort, flags))
-                pync.notify('TCP port tripped, possible scan detected!', title='Tripwire')
+                self.__tcp_packet_handler(pkt, srcIP, dstIP, timestamp)
             elif UDP in pkt:
-                sourcePort = pkt[UDP].sport
-                destPort = pkt[UDP].dport
-                print('[{0}] [UDP] {1}:{2} -> {3}:{4}'.format(timestamp, sourceAddr, sourcePort, destAddr, destPort))
-                pync.notify('UDP port tripped, possible scan detected!', title='Tripwire')
+                self.__udp_packet_handler(pkt, srcIP, dstIP, timestamp)
             elif ICMP in pkt:
-                type = pkt[ICMP].type
-                code = pkt[ICMP].code
-                icmp_codes = self.get_icmp_codes((type, code))
-                print('[{0}] [ICMP Type {1}, Code {2}: {3}] {4} -> {5}'.format(timestamp, type, code, 
-                icmp_codes if icmp_codes else '',
-                    sourceAddr, destAddr))
+                self.__icmp_packet_handler(pkt, srcIP, dstIP, timestamp)
         elif ARP in pkt:
-            sourceAddr = pkt[ARP].psrc
-            destAddr = pkt[ARP].pdst
-            timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-            print('[{0}] [ARP] {1} -> {2}'.format(timestamp, sourceAddr, destAddr))
+            self.__arp_packet_handler(pkt, timestamp)
         else:
             pkt.summary
             print('Packet not an IP packet')
             return
         return
+

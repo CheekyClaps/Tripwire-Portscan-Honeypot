@@ -1,8 +1,10 @@
-from scapy.all import *
+from alarm import *
 from appsettings import *
-import pync
+from scapy.all import *
 
+# Init
 Settings = AppSettings()
+Alarm = Alarm()
 
 class Packets:
 
@@ -70,36 +72,33 @@ class Packets:
             # The rest are deprecated, reserved, or experiemental
         }
         return icmp_codes_mapping.get(code, 'unknown')
-    
+   
+
     ## Packet handlers
     def __tcp_packet_handler(self, pkt, srcIP, dstIP, timestamp):
         srcPort = pkt[TCP].sport
         dstPort = pkt[TCP].dport
         flags = self.__get_tcp_flags(str(pkt[TCP].flags))
-        self.__alert( 'TCP', srcIP, srcPort, dstIP, dstPort, timestamp, flags)
+        self.__alert( 'TCP', srcIP, dstIP, timestamp, srcPort, srcPort, dstPort, flags)
 
     def __udp_packet_handler(self, pkt, srcIP, dstIP, timestamp):
         srcPort = pkt[UDP].sport
         dstPort = pkt[UDP].dport
-        self.__alert( 'UDP', srcIP, srcPort, dstIP, dstPort, timestamp)
+        self.__alert( 'UDP', srcIP, dstIP, timestamp, srcPort, srcPort, dstPort)
 
     def __icmp_packet_handler(self, pkt, srcIP, dstIP, timestamp):
-        type = pkt[ICMP].type
-        code = pkt[ICMP].code
-        icmp_codes = self.__get_icmp_codes((type, code))
-        print('[{0}] [ICMP Type {1}, Code {2}: {3}] {4} -> {5}'.format(timestamp, type, code, 
-        icmp_codes if icmp_codes else '',
-            sourceAddr, destAddr))
+        icmpType = pkt[ICMP].type
+        icmpCode = pkt[ICMP].code
+        icmpInfo = self.__get_icmp_codes((icmpType, icmpCode))
+
+        pktType = 'ICMP'
+        print('[{0}] [{1}] [Type {2}, Code {3}: {4}] {5} -> {6}'.format(timestamp, pktType, icmpType, icmpCode, icmpInfo if icmpInfo else '', srcIP, dstIP))
+        self.__alert( 'ICMP', srcIP, dstIP, timestamp, icmpType, icmpCode, icmpInfo)
 
     def __arp_packet_handler(self, pkt, timestamp):
         sourceAddr = pkt[ARP].psrc
         destAddr = pkt[ARP].pdst
         print('[{0}] [ARP] {1} -> {2}'.format(timestamp, sourceAddr, destAddr))
-
-
-    def __alert(self, pktType, srcIP, srcPort, dstIP, dstPort, timestamp, flags=False):
-        print('[{0}] [{1}] {2}:{3} -> {4}:{5} - {6}'.format(timestamp, pktType, srcIP, srcPort, dstIP, dstPort, flags if flags else ''))
-        pync.notify( '{pktType} port tripped, possible scan detected!', title='Tripwire')
 
 
     ## Packet filter

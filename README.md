@@ -10,7 +10,7 @@ A Mac OSX suitable portscan honeypot built around Scapy.
 
 ## Installation
 Use poetry to get the dependencys and run tripwire.py with sudo.
-sudo python3 tripwire.py
+```sudo python3 tripwire.py```
 
 ## Disclaimer
 I just took whatever i could find and slapped it in and made it work. Dont expect to find a finished product or a beautiful symphony of code.

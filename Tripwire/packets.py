@@ -79,27 +79,23 @@ class Packets:
         srcPort = pkt[TCP].sport
         dstPort = pkt[TCP].dport
         flags = self.__get_tcp_flags(str(pkt[TCP].flags))
-        self.__alert( 'TCP', srcIP, dstIP, timestamp, srcPort, srcPort, dstPort, flags)
+        Alarm.tcp_alert_handler(srcIP, dstIP, timestamp, srcPort, srcPort, dstPort, flags)
 
     def __udp_packet_handler(self, pkt, srcIP, dstIP, timestamp):
         srcPort = pkt[UDP].sport
         dstPort = pkt[UDP].dport
-        self.__alert( 'UDP', srcIP, dstIP, timestamp, srcPort, srcPort, dstPort)
+        Alarm.udp_alert_handler(srcIP, dstIP, timestamp, srcPort, srcPort, dstPort)
 
     def __icmp_packet_handler(self, pkt, srcIP, dstIP, timestamp):
         icmpType = pkt[ICMP].type
         icmpCode = pkt[ICMP].code
         icmpInfo = self.__get_icmp_codes((icmpType, icmpCode))
-
-        pktType = 'ICMP'
-        print('[{0}] [{1}] [Type {2}, Code {3}: {4}] {5} -> {6}'.format(timestamp, pktType, icmpType, icmpCode, icmpInfo if icmpInfo else '', srcIP, dstIP))
-        self.__alert( 'ICMP', srcIP, dstIP, timestamp, icmpType, icmpCode, icmpInfo)
+        Alarm.icmp_alert_handler(srcIP, dstIP, timestamp, icmpType, icmpCode, icmpInfo)
 
     def __arp_packet_handler(self, pkt, timestamp):
         sourceAddr = pkt[ARP].psrc
         destAddr = pkt[ARP].pdst
-        print('[{0}] [ARP] {1} -> {2}'.format(timestamp, sourceAddr, destAddr))
-
+        Alarm.arp_alert_handler(timestamp, sourceAddr, destAddr)
 
     ## Packet filter
     def build_lfilter(self, pkt):

@@ -12,7 +12,7 @@ class Alarm:
 
     def icmp_alert_handler(self, srcIP, dstIP, timestamp, icmpType, icmpCode, icmpInfo):
         print('[{0}] [ICMP] [Type {1}, Code {2}: {3}] {4} -> {5}'.format(timestamp, icmpType, icmpCode, icmpInfo if icmpInfo else '', srcIP, dstIP))
-        pync.notify( 'ICMP - {icmpInfo} possible scan detected!', title='Tripwire')
+        pync.notify( 'ICMP - {0} possible scan detected!'.format(icmpInfo if icmpInfo else '', srcIP, dstIP), title='Tripwire')
 
     def arp_alert_handler(self, timestamp, sourceAddr, destAddr):
         print('[{0}] [ARP] {1} -> {2}'.format(timestamp, sourceAddr, destAddr))

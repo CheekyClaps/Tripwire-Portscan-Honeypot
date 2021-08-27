@@ -79,7 +79,7 @@ class Packets:
         srcPort = pkt[TCP].sport
         dstPort = pkt[TCP].dport
         flags = self.__get_tcp_flags(str(pkt[TCP].flags))
-        Alarm.tcp_alert_handler(srcIP, dstIP, timestamp, srcPort, srcPort, dstPort, flags)
+        Alarm.tcp_alert_handler(srcIP, dstIP, timestamp, srcPort, dstPort, flags)
 
     def __udp_packet_handler(self, pkt, srcIP, dstIP, timestamp):
         srcPort = pkt[UDP].sport

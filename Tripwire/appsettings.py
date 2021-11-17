@@ -73,3 +73,4 @@ class AppSettings:
         self.listening_ports = [8080]
         self.webhook = None
         self.webhook_type = WebHookType.NONE
+        

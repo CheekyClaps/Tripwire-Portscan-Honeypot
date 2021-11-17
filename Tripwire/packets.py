@@ -1,10 +1,14 @@
 from alarm import *
 from appsettings import *
 from scapy.all import *
+from collections import *
 
-# Init
+# Init imports
 Settings = AppSettings()
 Alarm = Alarm()
+
+# Init tcp_flag_buffer
+flag_buffer = collections.deque(maxlen=10)
 
 class Packets:
 
@@ -72,12 +76,22 @@ class Packets:
             # The rest are deprecated, reserved, or experiemental
         }
         return icmp_codes_mapping.get(code, 'unknown')
-   
 
+    ## Bufferlist patternmatching
+    ## Circular packet tcp flag buffer
+    def __packet_tcp_flag_buffer(self, flag):
+        try:
+            flag_buffer.append(flag)
+            print(flag_buffer)
+            list(flag_buffer)
+        except:
+            print("Cannot write to flagbuffer!")
+            
     ## Packet handlers
     def __tcp_packet_handler(self, pkt, srcIP, dstIP, timestamp):
         srcPort = pkt[TCP].sport
         dstPort = pkt[TCP].dport
+        self.__packet_tcp_flag_buffer(str(pkt[TCP].flags))
         flags = self.__get_tcp_flags(str(pkt[TCP].flags))
         Alarm.tcp_alert_handler(srcIP, dstIP, timestamp, srcPort, dstPort, flags)
 

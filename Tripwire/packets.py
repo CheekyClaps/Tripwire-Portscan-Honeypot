@@ -3,37 +3,53 @@ from appsettings import *
 from scapy.all import *
 from collections import *
 
+# debug
+import traceback
+
 # Init imports
 Settings = AppSettings()
 Alarm = Alarm()
 
-# Init tcp_flag_buffer
-flag_buffer = collections.deque(maxlen=10)
-
 class Packets:
 
+    # TCP_flag_buffer
+    tcp_flag_buffer = collections.deque(maxlen=4)
+
     ## Dictionary mapping of TCP flags 
-    def __get_tcp_flags(self, flags):
+    def __get_tcp_flags(self, flag):
         tcp_flag_mapping = {
             '': 'TCP NULL',
             'A': 'TCP ACK',
-            'CRW': 'TCP CRW',
-            'ECE': 'TCP ECE-Echo',
+            'C': 'TCP CRW',
+            'E': 'TCP ECE-Echo',
             'F': 'TCP FIN',
             'FPU': 'TCP FPU',
-            'PSH': 'TCP PSH',
-            'RST': 'TCP RST',
+            'P': 'TCP PSH',
+            'R': 'TCP RST',
             'S': 'TCP SYN', 
             'SEC': 'TCP SEC',
             'URG': 'TCP URG',
+        } 
+        return tcp_flag_mapping.get(flag)
+
+    ## Dictionary mapping of TCP scan types 
+    def __get_tcp_scan_type(self, flags):
+        tcp_scan_type_mapping = {
+            ('A', 'R'): 'ACK',
+            ('SEC', 'S', 'S'): 'CONN',
+            ('F', 'F'): 'FIN',
+            ('F', 'A'): 'FIN/ACK',
+            ('', ''): 'NULL',
+            ('', '', ''): 'NULL',
+            ('S', 'RA'): 'SYN/CONN',
+            ('S', 'F'): 'SYN/FIN',
+            ('FPU', 'FPU'): 'XMAS',
             ('URG', 'PSH', 'F'): 'XMAS',
             ('URG', 'PSH', 'F', 'A'): 'XMAS',
-            ('S', 'F'): 'SYN/FIN',
-            ('F', 'A'): 'FIN/ACK',
-            ('SEC', 'S', 'S'): 'CONN',
             ('URG', 'PSH', 'A', 'RST', 'S', 'F'): 'ALL-FLAGS'
         } 
-        return tcp_flag_mapping.get(flags)
+        return tcp_scan_type_mapping.get(flags)
+
 
     ## Dictionary mapping of ICMP Codes
     def __get_icmp_codes(self, code):
@@ -77,22 +93,28 @@ class Packets:
         }
         return icmp_codes_mapping.get(code, 'unknown')
 
-    ## Bufferlist patternmatching
     ## Circular packet tcp flag buffer
     def __packet_tcp_flag_buffer(self, flag):
         try:
-            flag_buffer.append(flag)
-            print(flag_buffer)
-            list(flag_buffer)
+            self.tcp_flag_buffer.append(flag)
+            print(tuple(self.tcp_flag_buffer))
         except:
+            traceback.print_exc()
             print("Cannot write to flagbuffer!")
-            
+        if len(tuple(self.tcp_flag_buffer)) >= 2: ## switch case dependend on howmany are in q
+            try:
+                scan_type = self.__get_tcp_scan_type(tuple(self.tcp_flag_buffer))
+                print(scan_type)
+            except:
+                traceback.print_exc()
+                print("Cannot get flag combination!")
+                        
     ## Packet handlers
     def __tcp_packet_handler(self, pkt, srcIP, dstIP, timestamp):
         srcPort = pkt[TCP].sport
         dstPort = pkt[TCP].dport
-        self.__packet_tcp_flag_buffer(str(pkt[TCP].flags))
         flags = self.__get_tcp_flags(str(pkt[TCP].flags))
+        tcp_scan_type = self.__packet_tcp_flag_buffer(str(pkt[TCP].flags))
         Alarm.tcp_alert_handler(srcIP, dstIP, timestamp, srcPort, dstPort, flags)
 
     def __udp_packet_handler(self, pkt, srcIP, dstIP, timestamp):

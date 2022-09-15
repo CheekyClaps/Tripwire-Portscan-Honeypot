@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from enum import IntEnum
 import logging
-import requests
+#import requests
 import json
 import pymsteams
 

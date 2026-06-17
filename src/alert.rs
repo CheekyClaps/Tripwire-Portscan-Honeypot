@@ -3,6 +3,7 @@ use log::{info, warn};
 use notify_rust::Notification;
 use reqwest::Client;
 use std::collections::HashMap;
+use std::net::IpAddr;
 
 pub struct Alerter {
     config: NotificationsConfig,
@@ -17,47 +18,59 @@ impl Alerter {
         }
     }
 
-    pub async fn alert(&self, protocol: &str, src_ip: &str, src_port: u16, dst_port: u16, details: &str) {
-        let message = format!(
-            "[{}] Scan detected! {}:{} -> Port {} ({})",
-            protocol, src_ip, src_port, dst_port, details
-        );
+    pub async fn alert(&self, protocol: &str, src_ip: &str, src_mac: &str, src_port: u16, dst_port: u16, details: &str) {
+        let src_ip_owned = src_ip.to_string();
+        let src_mac_owned = src_mac.to_string();
+        let protocol_owned = protocol.to_string();
+        let details_owned = details.to_string();
+        let config = self.config.clone();
+        let client = self.client.clone();
 
-        // System Log (via env_logger / log crate, or syslog)
-        if self.config.syslog {
-            // syslog output is handled if syslog is configured as the logger backend
-            // For now, we use standard log macros which can be routed to syslog by main.rs
-            warn!("TRIPWIRE-ALERT: {}", message);
-        } else {
-            info!("TRIPWIRE-ALERT: {}", message);
-        }
+        tokio::spawn(async move {
+            // Attempt reverse DNS lookup
+            let hostname = if let Ok(ip) = src_ip_owned.parse::<IpAddr>() {
+                tokio::task::spawn_blocking(move || {
+                    dns_lookup::lookup_addr(&ip).unwrap_or_else(|_| "Unknown Host".to_string())
+                })
+                .await
+                .unwrap_or_else(|_| "Unknown Host".to_string())
+            } else {
+                "Unknown Host".to_string()
+            };
 
-        // Desktop Notifications
-        if self.config.desktop {
-            if let Err(e) = Notification::new()
-                .summary("Tripwire Alert")
-                .body(&message)
-                .icon("dialog-warning")
-                .show()
-            {
-                warn!("Failed to send desktop notification: {}", e);
+            let message = format!(
+                "[{}] Scan from {} ({}) [MAC: {}] :{} -> Port {} ({})",
+                protocol_owned, src_ip_owned, hostname, src_mac_owned, src_port, dst_port, details_owned
+            );
+
+            // System Log
+            if config.syslog {
+                warn!("TRIPWIRE-ALERT: {}", message);
+            } else {
+                info!("TRIPWIRE-ALERT: {}", message);
             }
-        }
 
-        // Webhook
-        if !self.config.webhook_url.is_empty() {
-            let mut payload = HashMap::new();
-            payload.insert("content", message.clone());
+            // Desktop Notifications
+            if config.desktop {
+                if let Err(e) = Notification::new()
+                    .summary("Tripwire Alert")
+                    .body(&message)
+                    .icon("dialog-warning")
+                    .show()
+                {
+                    warn!("Failed to send desktop notification: {}", e);
+                }
+            }
 
-            let url = self.config.webhook_url.clone();
-            let client = self.client.clone();
-            
-            // Spawn a task so we don't block the packet processing loop
-            tokio::spawn(async move {
-                if let Err(e) = client.post(&url).json(&payload).send().await {
+            // Webhook
+            if !config.webhook_url.is_empty() {
+                let mut payload = HashMap::new();
+                payload.insert("content", message.clone());
+                
+                if let Err(e) = client.post(&config.webhook_url).json(&payload).send().await {
                     warn!("Failed to send webhook: {}", e);
                 }
-            });
-        }
+            }
+        });
     }
 }

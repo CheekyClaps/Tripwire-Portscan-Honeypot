@@ -91,6 +91,14 @@ impl CaptureEngine {
     async fn process_packet(&self, packet_data: &[u8]) {
         match SlicedPacket::from_ethernet(packet_data) {
             Ok(sliced) => {
+                let src_mac = match &sliced.link {
+                    Some(etherparse::LinkSlice::Ethernet2(eth)) => {
+                        let mac = eth.source();
+                        format!("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])
+                    }
+                    _ => "Unknown MAC".to_string(),
+                };
+
                 let (src_ip, _dst_ip) = match &sliced.ip {
                     Some(InternetSlice::Ipv4(ip, _)) => (ip.source_addr().to_string(), ip.destination_addr().to_string()),
                     Some(InternetSlice::Ipv6(ip, _)) => (ip.source_addr().to_string(), ip.destination_addr().to_string()),
@@ -103,7 +111,7 @@ impl CaptureEngine {
                         if self.config.tcp_ports.contains(&dst_port) {
                             let flags = self.format_tcp_flags(tcp);
                             self.alerter
-                                .alert("TCP", &src_ip, tcp.source_port(), dst_port, &flags)
+                                .alert("TCP", &src_ip, &src_mac, tcp.source_port(), dst_port, &flags)
                                 .await;
                         }
                     }
@@ -111,7 +119,7 @@ impl CaptureEngine {
                         let dst_port = udp.destination_port();
                         if self.config.udp_ports.contains(&dst_port) {
                             self.alerter
-                                .alert("UDP", &src_ip, udp.source_port(), dst_port, "")
+                                .alert("UDP", &src_ip, &src_mac, udp.source_port(), dst_port, "")
                                 .await;
                         }
                     }
@@ -119,7 +127,7 @@ impl CaptureEngine {
                         if self.config.icmp {
                             let details = format!("Type: {}, Code: {}", icmp.type_u8(), icmp.code_u8());
                             self.alerter
-                                .alert("ICMPv4", &src_ip, 0, 0, &details)
+                                .alert("ICMPv4", &src_ip, &src_mac, 0, 0, &details)
                                 .await;
                         }
                     }
@@ -127,7 +135,7 @@ impl CaptureEngine {
                         if self.config.icmp {
                             let details = format!("Type: {}, Code: {}", icmp.type_u8(), icmp.code_u8());
                             self.alerter
-                                .alert("ICMPv6", &src_ip, 0, 0, &details)
+                                .alert("ICMPv6", &src_ip, &src_mac, 0, 0, &details)
                                 .await;
                         }
                     }

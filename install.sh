@@ -44,6 +44,22 @@ else
 fi
 
 echo "[*] Creating systemd service..."
+
+REAL_USER=${SUDO_USER:-root}
+REAL_UID=$(id -u "$REAL_USER")
+REAL_GROUP=$(id -g -n "$REAL_USER")
+
+echo ""
+echo "--------------------------------------------------------"
+echo " Service Execution User Selection"
+echo "--------------------------------------------------------"
+echo "Tripwire can run as your local user or as the secure 'nobody' user."
+echo ""
+echo " 1) Run as $REAL_USER (Required for Desktop Notifications)"
+echo " 2) Run as nobody (More secure, but Webhooks & Syslog only)"
+echo ""
+read -p "Select an option [1 or 2]: " USER_CHOICE
+
 cat <<EOF > /etc/systemd/system/tripwire.service
 [Unit]
 Description=Tripwire Portscan Honeypot
@@ -54,9 +70,27 @@ Type=simple
 ExecStart=/usr/local/bin/tripwire
 Restart=on-failure
 RestartSec=5
+EOF
+
+if [ "$USER_CHOICE" == "1" ]; then
+    echo "    -> Configuring service to run as $REAL_USER"
+    cat <<EOF >> /etc/systemd/system/tripwire.service
+# Run as the user who installed it so desktop notifications work
+User=$REAL_USER
+Group=$REAL_GROUP
+Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$REAL_UID/bus"
+Environment="DISPLAY=:0"
+EOF
+else
+    echo "    -> Configuring service to run as nobody"
+    cat <<EOF >> /etc/systemd/system/tripwire.service
 # Run as an unprivileged user for security
 User=nobody
 Group=nobody
+EOF
+fi
+
+cat <<EOF >> /etc/systemd/system/tripwire.service
 # Retain capabilities needed for pcap
 AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 

@@ -27,6 +27,10 @@ An automated deployment script is included to make installation seamless on Fedo
    sudo ./install.sh
    ```
 
+During installation, you will be prompted to choose how the background service runs:
+* **Option 1 (Local User):** Required if you want to receive Desktop Notifications.
+* **Option 2 (nobody):** More secure, but limits alerts to Syslog and Webhooks only.
+
 The script will:
 * Install `libpcap-devel`, `dbus-devel`, `openssl-devel`, and Rust.
 * Build the `tripwire` binary and move it to `/usr/local/bin/tripwire`.

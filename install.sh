@@ -40,7 +40,14 @@ if [ ! -f /etc/tripwire/tripwire.yaml ]; then
     cp tripwire.yaml /etc/tripwire/
     echo "    -> Default config copied to /etc/tripwire/tripwire.yaml"
 else
-    echo "    -> Config already exists at /etc/tripwire/tripwire.yaml, skipping copy."
+    echo "    -> Config already exists at /etc/tripwire/tripwire.yaml."
+    read -p "    -> Do you want to overwrite it with your local tripwire.yaml? [y/N]: " OVERWRITE_CONFIG
+    if [[ "$OVERWRITE_CONFIG" =~ ^[Yy]$ ]]; then
+        cp tripwire.yaml /etc/tripwire/
+        echo "    -> Config overwritten."
+    else
+        echo "    -> Keeping existing configuration."
+    fi
 fi
 
 echo "[*] Creating systemd service..."

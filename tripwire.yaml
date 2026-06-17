@@ -1,0 +1,18 @@
+# Tripwire Configuration
+interface: "lo" # Change to your actual network interface, e.g., eth0 or wlan0
+
+# Ports to monitor for uninvited connection attempts
+tcp_ports:
+  - 22
+  - 80
+  - 443
+  - 8080
+
+udp_ports:
+  - 1194
+
+# Alerting
+notifications:
+  desktop: true
+  syslog: true
+  webhook_url: "" # e.g. "https://discord.com/api/webhooks/..."

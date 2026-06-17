@@ -1,0 +1,26 @@
+[package]
+name = "tripwire"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Packet capture and parsing
+pcap = "1.1.0"
+etherparse = "0.13.0"
+
+# Async & Webhooks
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+
+# Notifications
+notify-rust = "4.9.0"
+
+# Logging
+log = "0.4"
+env_logger = "0.10.0"
+syslog = "6.1.0"
+
+# Configuration and Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+lazy_static = "1.4.0"

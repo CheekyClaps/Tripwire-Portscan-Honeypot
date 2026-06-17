@@ -2,7 +2,7 @@ use crate::alert::Alerter;
 use crate::config::Config;
 use etherparse::{SlicedPacket, TransportSlice, InternetSlice};
 use log::{error, info};
-use pcap::{Active, Capture, Device};
+use pcap::{Capture, Device};
 use std::sync::Arc;
 
 pub struct CaptureEngine {
@@ -81,6 +81,10 @@ impl CaptureEngine {
             filter_parts.push(format!("({})", udp_ports));
         }
 
+        if self.config.icmp {
+            filter_parts.push("(icmp or icmp6)".to_string());
+        }
+
         filter_parts.join(" or ")
     }
 
@@ -111,6 +115,22 @@ impl CaptureEngine {
                                 .await;
                         }
                     }
+                    Some(TransportSlice::Icmpv4(icmp)) => {
+                        if self.config.icmp {
+                            let details = format!("Type: {}, Code: {}", icmp.type_u8(), icmp.code_u8());
+                            self.alerter
+                                .alert("ICMPv4", &src_ip, 0, 0, &details)
+                                .await;
+                        }
+                    }
+                    Some(TransportSlice::Icmpv6(icmp)) => {
+                        if self.config.icmp {
+                            let details = format!("Type: {}, Code: {}", icmp.type_u8(), icmp.code_u8());
+                            self.alerter
+                                .alert("ICMPv6", &src_ip, 0, 0, &details)
+                                .await;
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -129,10 +149,17 @@ impl CaptureEngine {
         if tcp.psh() { flags.push("PSH"); }
         if tcp.urg() { flags.push("URG"); }
         
-        if flags.is_empty() {
+        let mut result = if flags.is_empty() {
             "NULL".to_string()
         } else {
             flags.join(",")
+        };
+
+        // Detect XMAS Scan (FIN, PSH, and URG all set)
+        if tcp.fin() && tcp.psh() && tcp.urg() {
+            result = format!("XMAS SCAN ({})", result);
         }
+
+        result
     }
 }

@@ -23,6 +23,10 @@ else
 fi
 
 echo "[*] Installing binary to /usr/local/bin/tripwire..."
+if systemctl list-unit-files | grep -q tripwire.service; then
+    echo "    -> Stopping existing tripwire service before overwrite..."
+    systemctl stop tripwire.service || true
+fi
 cp target/release/tripwire /usr/local/bin/tripwire
 chmod +x /usr/local/bin/tripwire
 

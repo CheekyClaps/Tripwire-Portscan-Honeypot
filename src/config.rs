@@ -13,7 +13,13 @@ pub struct Config {
     pub interface: String,
     pub tcp_ports: Vec<u16>,
     pub udp_ports: Vec<u16>,
+    #[serde(default = "default_icmp")]
+    pub icmp: bool,
     pub notifications: NotificationsConfig,
+}
+
+fn default_icmp() -> bool {
+    false
 }
 
 impl Config {

@@ -11,6 +11,9 @@ tcp_ports:
 udp_ports:
   - 1194
 
+# Monitor ICMP (Ping)
+icmp: true
+
 # Alerting
 notifications:
   desktop: true
